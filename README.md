@@ -6,7 +6,7 @@ deployed through Terraform to be run on Lambda triggered by CloudWatch Events, o
  
 Currently supported:
 
-<table>
+<table border=0 cellspacing="10" cellpadding="5">
     <tr>
         <td>
             <a href="https://github.com/psedge/firefly-importers/blob/main/transferwise">
