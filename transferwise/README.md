@@ -1,21 +1,26 @@
 ## TransferWise Importer
-
+``
 TransferWise allows a user to hold multiple currencies transferring value between them. This tool
 does the following:
 
 1. Fetches the User ID and Account ID against your API Token
 2. Fetches transactions from the `/transactions` endpoint
 3. Formats data, unifying types with Firefly III
-4. Posts transactions to the provided Firefly III API
+4. Searches Firefly for an existing transaction that matches that ID
+4. Creates (or updates existing) transactions via the Firefly III API
 
 There's a few points in here which are interesting quirks of either side:
 
 * TransferWise allows you to retrieve a maximum of 9 months at a time, so this tool chunks your request time if larger
 * TransferWise is *made* for multiple currencies, so the tool imports both the native currency of the transaction
 and if enabled by the `CONVERT_AMOUNTS` .env setting, attempts to convert the currencies at the time of transaction using
-the Yahoo Finance API. You'll need an API key to do that, which you should set in `YAHOO_FINANCE_API_TOKEN` in .env
-* The importer hashes the body of a transaction, and stores a SHA256 in the `external_reference_id`, so that transactions
-are updated, not duplicated on subsequent runs.
+the Yahoo Finance API. It's possible to have your IP blocked if you abuse that API, exercise caution.
+    * On that note, as default the tool does not populate the `foreign_amount` field as this can cause issues with budgets
+    so instead it just sets that data in the `notes` field.
+    * You can populate the field if you like, by removing the `pass` line in `post_tx_to_firefly`
+* Firefly allows you to search on two fields at the time of writing; Title and Description. To enable upserting a previously
+scraped transaction we have to append a unique ID (external_reference-currency) to the end of a description. The idea
+is that you can run this tool, edit your categories or settings, run it again, and not have duplicated transactions.
 
 
 ### Setup
@@ -25,7 +30,8 @@ You'll need an API token to use this tool, which you can grab from
 read-only token, then add it into your .env file using the example format contained in .env.example. Alternatively, if
 you'd like to deploy this tool to AWS using Terraform, see the section below.
 
-```python
+```bash
+cd src
 pip install --r requirements.txt
 python setup.py
 ```
@@ -42,6 +48,8 @@ CONVERT_AMOUNTS=true        # Whether to attempt transaction amount conversions 
 BASE_CURRENCY=GBP           # Currency to convert others to
 ```
 
+The tool ships with sane defaults in `.env.example`.
+
 #### `categories-map.json`
 
 TransferWise provides a set of categories against a transaction, presumably based on some internal categorisation process.
@@ -56,7 +64,8 @@ to. This mapping between TransferWise category (key/left) and Firefly category (
 ```
 
 There may be other custom logic you want to run during this categorisation, which you can add in the `determine_category`
-function.
+function. Sadly it seems like the only way to enumerate all TransferWise categories is to transact in them, hence I've
+avoided including the values I've gotten from my spending habits. *sideward glance*
 
 #### `accounts.json`
 
@@ -79,3 +88,5 @@ This tool can be deployed using various AWS products, which makes the whole oper
 
 1. Lambda; for execution of the main code.
 2. CloudWatch; for runtime log storage and cron scheduling
+
+Including the module will prompt you to include the necessary variables.

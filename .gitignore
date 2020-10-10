@@ -63,7 +63,7 @@ __pypackages__/
 
 
 # Environments
-.env
+transferwise/src/config/.env
 .venv
 env/
 venv/
