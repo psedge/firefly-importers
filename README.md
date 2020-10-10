@@ -14,3 +14,12 @@ Currently supported:
         <img src="https://github.com/psedge/firefly-importers/blob/main/assets/transferwise.png" alt="TransferWise" width="96" height="96">
    </a>
 </p>
+<p style="float: left; margin: 10px;">
+   <a href="https://github.com/psedge/firefly-importers/blob/main/monzo">
+        <strong>Monzo</strong>
+        <br/>
+        <br/>
+        <img src="https://github.com/psedge/firefly-importers/blob/main/assets/monzo.png" alt="TransferWise" width="96" height="96">
+   </a>
+</p>
+
