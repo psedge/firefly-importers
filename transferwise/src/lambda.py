@@ -3,6 +3,12 @@ from . import main as transferwise
 
 
 def lambda_handler(event, context):
+    """
+    Handle the event from Lambda, starting the import.
+    :param event:
+    :param context:
+    :return: Lambda formatted response.
+    """
     try:
         transferwise.main()
     except Exception as e:
@@ -12,5 +18,5 @@ def lambda_handler(event, context):
         }
     return {
         'statusCode': 200,
-        'body': 0
+        'body': "Successfully ran TransferWise import."
     }

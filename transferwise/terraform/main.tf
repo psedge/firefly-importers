@@ -33,7 +33,8 @@ data "aws_iam_policy_document" "assume_policy_doc" {
 
     principals {
       type = "Service"
-      identifiers = ["lambda.amazonaws.com"]
+      identifiers = [
+        "lambda.amazonaws.com"]
     }
   }
 }
@@ -46,7 +47,9 @@ data "aws_iam_policy_document" "policy_doc" {
       "logs:PutLogEvents"
     ]
 
-    resources = ["arn:aws:logs:*:*:*"]
+    resources = [
+      "arn:aws:logs:*:*:*"
+    ]
   }
 }
 

@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from typing import List
 
-TRANSFERWISE_BASE_URI = 'https://api.transferwise.com'
-FIREFLY_BASE_URI = 'http://167.99.90.253'
-
+# Globals
+TRANSFERWISE_BASE_URI = None
+FIREFLY_BASE_URI = None
 category_map = {}
 currency_accounts = {}
 
@@ -18,11 +18,16 @@ logging.getLogger().setLevel(logging.INFO)
 
 
 def main():
+    global TRANSFERWISE_BASE_URI
+    global FIREFLY_BASE_URI
     global category_map
     global currency_accounts
 
     load_dotenv('config/.env')
     validate_dotenv()
+
+    TRANSFERWISE_BASE_URI = os.environ['TRANSFERWISE_BASE_URI']
+    FIREFLY_BASE_URI = os.environ['FIREFLY_BASE_URI']
 
     if not os.path.exists('config/categories-map.json'):
         logging.error("categories-map.json not found, exiting.")
@@ -83,6 +88,8 @@ def validate_dotenv():
             logging.error(f"{key} was not set correctly in .env or ENV, please provide a valid {expected_type}.")
             exit(1)
 
+    check_string('TRANSFERWISE_BASE_URI', 'str')
+    check_string('FIREFLY_BASE_URI', 'str')
     check_string('TRANSFERWISE_TOKEN', 'str')
     check_string('FIREFLY_TOKEN', 'str')
     check_string('FETCH_PERIOD', 'int')
@@ -225,6 +232,7 @@ def fetch_txs_from_transferwise(user_id: str, account_id: str, currency: str, st
     :param end:
     :return:
     """
+    global TRANSFERWISE_BASE_URI
     global category_map
     global currency_accounts
 
@@ -312,6 +320,8 @@ def post_tx_to_firefly(tx: Transaction, account_id: str) -> bool:
     :param account_id:
     :return:
     """
+    global FIREFLY_BASE_URI
+
     tx_body = {
         "external_id": tx.id,
         "type": "deposit" if tx.tx_type in 'CREDIT' else 'withdrawal',
