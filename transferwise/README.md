@@ -1,5 +1,5 @@
-## TransferWise Importer
-``
+<img src="https://github.com/psedge/firefly-importers/blob/main/assets/transferwise.png" alt="TransferWise" width="48" height="48">
+
 TransferWise allows a user to hold multiple currencies transferring value between them. This tool
 does the following:
 
@@ -58,7 +58,6 @@ to. This mapping between TransferWise category (key/left) and Firefly category (
 
 ```json
 {
-  // TransferWise: Firefly
   "Bars, Cocktail Lounges, Discothe": {"category": "Alcohol", "budget": "Recreation"}
 }
 ```
@@ -70,12 +69,11 @@ avoided including the values I've gotten from my spending habits. *sideward glan
 #### `accounts.json`
 
 In Firefly you typically have multiple accounts, so this tool requires you to map between TransferWise currencies and
-FireFly accounts. The tool will produce an error if it finds transactions with a currency code which do not have
+FireFly account IDs. The tool will produce an error if it finds transactions with a currency code which do not have
 a corresponding entry in this file.
 
 ```json
 {
-  // Currency code: Firefly account ID
   "GBP": 1,
   "EUR": 2
 }
