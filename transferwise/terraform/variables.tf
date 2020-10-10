@@ -1,5 +1,5 @@
 variable "TRANSFERWISE_BASE_URI" {
-  type = string
+  type    = string
   default = "https://api.transferwise.com"
 }
 
@@ -29,4 +29,14 @@ variable "CONVERT_AMOUNTS" {
 
 variable "BASE_CURRENCY" {
   type = string
+}
+
+variable "CRON_ENABLED" {
+  type    = number
+  default = 0
+}
+
+variable "CRON_SCHEDULE" {
+  type    = string
+  default = ""
 }

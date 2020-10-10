@@ -1,28 +1,30 @@
 data "archive_file" "source" {
-  type = "zip"
+  type        = "zip"
   output_path = "${path.module}/terraform.zip"
-  source_dir = "../src"
+  source_dir  = "../src"
 }
 
 resource "aws_lambda_function" "lambda" {
-  file = data.archive_file.source.output_path
+  file             = data.archive_file.source.output_path
   source_code_hash = data.archive_file.source.output_base64sha256
 
   function_name = "lambda"
-  description = "Syncs a TransferWise account with a Firefly III instance"
-  runtime = "python3.8"
-  handler = "lambda.lambda_handler"
-  timeout = 600
-  role = aws_iam_role.role.arn
+  description   = "Syncs a TransferWise account with a Firefly III instance"
+  runtime       = "python3.8"
+  handler       = "lambda.lambda_handler"
+  timeout       = 600
+  role          = aws_iam_role.role.arn
 
   environment {
     variables = {
-      TRANSFERWISE_TOKEN = var.TRANSFERWISE_TOKEN
-      FIREFLY_TOKEN = var.FIREFLY_TOKEN
-      FETCH_PERIOD = var.FETCH_PERIOD
-      FETCH_CURRENCIES = var.FETCH_CURRENCIES
-      CONVERT_AMOUNTS = var.CONVERT_AMOUNTS
-      BASE_CURRENCY = var.BASE_CURRENCY
+      TRANSFERWISE_BASE_URI = var.TRANSFERWISE_TOKEN
+      FIREFLY_BASE_URI      = var.TRANSFERWISE_TOKEN
+      TRANSFERWISE_TOKEN    = var.TRANSFERWISE_TOKEN
+      FIREFLY_TOKEN         = var.FIREFLY_TOKEN
+      FETCH_PERIOD          = var.FETCH_PERIOD
+      FETCH_CURRENCIES      = var.FETCH_CURRENCIES
+      CONVERT_AMOUNTS       = var.CONVERT_AMOUNTS
+      BASE_CURRENCY         = var.BASE_CURRENCY
     }
   }
 }
@@ -34,7 +36,7 @@ data "aws_iam_policy_document" "assume_policy_doc" {
     principals {
       type = "Service"
       identifiers = [
-        "lambda.amazonaws.com"]
+      "lambda.amazonaws.com"]
     }
   }
 }
@@ -55,15 +57,38 @@ data "aws_iam_policy_document" "policy_doc" {
 
 resource "aws_iam_policy" "policy" {
   name_prefix = "transferwise-"
-  policy = data.aws_iam_policy_document.policy_doc.json
+  policy      = data.aws_iam_policy_document.policy_doc.json
 }
 
 resource "aws_iam_role" "role" {
-  name = "transferwise"
+  name               = "transferwise"
   assume_role_policy = data.aws_iam_policy_document.assume_policy_doc.json
 }
 
 resource "aws_iam_role_policy_attachment" "policy_attachment" {
-  role = aws_iam_role.role.name
+  role       = aws_iam_role.role.name
   policy_arn = aws_iam_policy.policy.arn
+}
+
+resource "aws_cloudwatch_event_rule" "cloudwatch_event" {
+  name                = "transferwise-cron"
+  description         = "Triggers a TransferWise -> Firefly III sync."
+  schedule_expression = var.CRON_SCHEDULE
+  count               = var.CRON_ENABLED
+}
+
+resource "aws_cloudwatch_event_target" "cloudwatch_target" {
+  rule      = aws_cloudwatch_event_rule.cloudwatch_event.name
+  target_id = "lambda"
+  arn       = aws_lambda_function.lambda.arn
+  count     = var.CRON_ENABLED
+}
+
+resource "aws_lambda_permission" "cloudwatch_lambda_permission" {
+  statement_id  = "CloudWatchTransferWise"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.cloudwatch_event.arn
+  count         = var.CRON_ENABLED
 }
