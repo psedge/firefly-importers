@@ -1,5 +1,5 @@
 import json
-from . import main as transferwise
+import main as transferwise
 
 
 def lambda_handler(event, context):

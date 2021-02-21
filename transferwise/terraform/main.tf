@@ -1,14 +1,35 @@
 data "archive_file" "source" {
   type        = "zip"
+
+  source {
+    content  = file("${path.module}/../src/__init__.py")
+    filename = "__init__.py"
+  }
+  source {
+    content  = file("${path.module}/../src/lambda.py")
+    filename = "lambda.py"
+  }
+  source {
+    content  = file("${path.module}/../src/main.py")
+    filename = "main.py"
+  }
+  source {
+    content  = file("${path.module}/../config/accounts.json")
+    filename = "config/accounts.json"
+  }
+  source {
+    content  = file("${path.module}/../config/categories-map.json")
+    filename = "config/categories-map.json"
+  }
+
   output_path = "${path.module}/terraform.zip"
-  source_dir  = "../src"
 }
 
 resource "aws_lambda_function" "lambda" {
-  file             = data.archive_file.source.output_path
+  filename         = data.archive_file.source.output_path
   source_code_hash = data.archive_file.source.output_base64sha256
 
-  function_name = "lambda"
+  function_name = "transferwiseLambda"
   description   = "Syncs a TransferWise account with a Firefly III instance"
   runtime       = "python3.8"
   handler       = "lambda.lambda_handler"
@@ -17,8 +38,8 @@ resource "aws_lambda_function" "lambda" {
 
   environment {
     variables = {
-      TRANSFERWISE_BASE_URI = var.TRANSFERWISE_TOKEN
-      FIREFLY_BASE_URI      = var.TRANSFERWISE_TOKEN
+      TRANSFERWISE_BASE_URI = var.TRANSFERWISE_BASE_URI
+      FIREFLY_BASE_URI      = var.FIREFLY_BASE_URI
       TRANSFERWISE_TOKEN    = var.TRANSFERWISE_TOKEN
       FIREFLY_TOKEN         = var.FIREFLY_TOKEN
       FETCH_PERIOD          = var.FETCH_PERIOD
@@ -31,7 +52,7 @@ resource "aws_lambda_function" "lambda" {
 
 data "aws_iam_policy_document" "assume_policy_doc" {
   statement {
-    actions = "sts:AssumeRole"
+    actions = ["sts:AssumeRole"]
 
     principals {
       type = "Service"
@@ -74,14 +95,12 @@ resource "aws_cloudwatch_event_rule" "cloudwatch_event" {
   name                = "transferwise-cron"
   description         = "Triggers a TransferWise -> Firefly III sync."
   schedule_expression = var.CRON_SCHEDULE
-  count               = var.CRON_ENABLED
 }
 
 resource "aws_cloudwatch_event_target" "cloudwatch_target" {
   rule      = aws_cloudwatch_event_rule.cloudwatch_event.name
   target_id = "lambda"
   arn       = aws_lambda_function.lambda.arn
-  count     = var.CRON_ENABLED
 }
 
 resource "aws_lambda_permission" "cloudwatch_lambda_permission" {
@@ -90,5 +109,4 @@ resource "aws_lambda_permission" "cloudwatch_lambda_permission" {
   function_name = aws_lambda_function.lambda.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.cloudwatch_event.arn
-  count         = var.CRON_ENABLED
 }

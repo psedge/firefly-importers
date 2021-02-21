@@ -41,11 +41,12 @@ In an attempt to make this as flexible as possible, there's some additional (opt
 #### `.env`
 
 ```
-TRANSFERWISE_TOKEN=         # Your TransferWise API token
-FETCH_PERIOD=720            # Time in days to fetch transactions back from today
-FETCH_CURRENCIES=GBP,EUR    # A CSV of currencies to fetch. All defined must have a matching entry in accounts.json
-CONVERT_AMOUNTS=true        # Whether to attempt transaction amount conversions using Yahoo Finance API
-BASE_CURRENCY=GBP           # Currency to convert others to
+TRANSFERWISE_TOKEN=             # Your TransferWise API token
+FETCH_PERIOD=720                # Time in days to fetch transactions back from today
+FETCH_CURRENCIES=GBP,EUR        # A CSV of currencies to fetch. All defined must have a matching entry in accounts.json
+CONVERT_AMOUNTS=true            # Whether to attempt transaction amount conversions using Yahoo Finance API
+BASE_CURRENCY=GBP               # Currency to convert others to
+CRON_SCHEDULE="rate(5 minutes)" # AWS CloudWatch Event schedule to run this process on
 ```
 
 The tool ships with sane defaults in `.env.example`.
@@ -81,7 +82,7 @@ a corresponding entry in this file.
 
 ### Terraform
 
-This tool can be deployed using various AWS products, which makes the whole operation/maintainance of it *super* minimal
+This tool can be deployed using various AWS products, which makes the whole operation/maintenance of it *super* minimal
 . By default, the Terraform module at [./terraform/main.tf](./terraform/main.tf) uses the following services:
 
 1. Lambda; for execution of the main code.

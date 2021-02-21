@@ -31,11 +31,6 @@ variable "BASE_CURRENCY" {
   type = string
 }
 
-variable "CRON_ENABLED" {
-  type    = number
-  default = 0
-}
-
 variable "CRON_SCHEDULE" {
   type    = string
   default = ""

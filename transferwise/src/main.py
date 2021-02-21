@@ -2,10 +2,9 @@ import csv
 import json
 import logging
 import os
-import requests
+import urllib3
 import time
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 from typing import List
 
 # Globals
@@ -15,6 +14,7 @@ category_map = {}
 currency_accounts = {}
 
 logging.getLogger().setLevel(logging.INFO)
+http = urllib3.PoolManager()
 
 
 def main():
@@ -23,8 +23,7 @@ def main():
     global category_map
     global currency_accounts
 
-    load_dotenv('config/.env')
-    validate_dotenv()
+    validate_env()
 
     TRANSFERWISE_BASE_URI = os.environ['TRANSFERWISE_BASE_URI']
     FIREFLY_BASE_URI = os.environ['FIREFLY_BASE_URI']
@@ -68,11 +67,12 @@ def main():
         start = start + timedelta(days=period_length + 1)
 
 
-def validate_dotenv():
+def validate_env():
     """
     Check that either the .env or ENV contains the required values.
     :return:
     """
+
     def check_string(key: str, expected_type: str):
         try:
             if os.environ[key] is None or os.environ[key] == '':
@@ -198,17 +198,17 @@ def fetch_exchange_rate_from_yahoo(from_code: str, to_code: str, start: datetime
     if retry > 4:
         logging.error("Failed to fetch from Yahoo after 5 attempts, giving up.")
 
-    res = requests.get(
-        f'https://query1.finance.yahoo.com/v7/finance/download/{from_code}{to_code}=X?period1={int(start.timestamp())}&period2={int(end.timestamp())}&interval=1d&events=history')
-    if res.status_code != 200:
+    res = http.request('GET', f"https://query1.finance.yahoo.com/v7/finance/download/{from_code}{to_code}=X?period1={int(start.timestamp())}&period2={int(end.timestamp())}&interval=1d&events=history")  # noqa E401
+    if res.status != 200:
         time.sleep(5)
         return fetch_exchange_rate_from_yahoo(from_code, to_code, start, end, retry + 1)
 
     rates = {}
     last_seen = None
 
-    rows = list(csv.reader(res.content.decode().split("\n")))[1:]
+    rows = list(csv.reader(res.data.decode().split("\n")))[1:]
     results = {row[0]: row[4] for row in rows}
+    end = end + timedelta(days=1)
     for date in [start + timedelta(days=n) for n in range((end - start).days)]:
         formatted_date = date.strftime("%Y-%m-%d")
         if formatted_date not in results:
@@ -239,14 +239,14 @@ def fetch_txs_from_transferwise(user_id: str, account_id: str, currency: str, st
     start = start.replace(microsecond=0)
     end = end.replace(microsecond=0)
     uri = f"/v3/profiles/{user_id}/borderless-accounts/{account_id}/statement.json?intervalStart={start.isoformat()}Z&intervalEnd={end.isoformat()}Z&currency={currency}"
-    res = requests.get(TRANSFERWISE_BASE_URI + uri, headers={
+    res = http.request("GET", f"{TRANSFERWISE_BASE_URI}{uri}", headers={
         'Authorization': 'Bearer ' + os.environ['TRANSFERWISE_TOKEN']
     })
-    if res.status_code == 401:
+    if res.status == 401:
         logging.error('Unauthorized response fetching transactions, check API token.')
         exit()
-    if res.status_code != 200:
-        logging.error(f'Failed to fetch transactions for a non-auth reason. {res.status_code}: {res.content.decode()}')
+    if res.status != 200:
+        logging.error(f'Failed to fetch transactions for a non-auth reason. {res.status}: {res.content.decode()}')
         exit()
 
     fx_rates = {}
@@ -255,7 +255,7 @@ def fetch_txs_from_transferwise(user_id: str, account_id: str, currency: str, st
         fx_rates = fetch_exchange_rate_from_yahoo(from_code=currency, to_code=os.environ['BASE_CURRENCY'], start=start,
                                                   end=end)
 
-    body = json.loads(res.content.decode("utf-8"))
+    body = json.loads(res.data.decode("utf-8"))
     transactions = []
     for row in body['transactions']:
         currency_code = row['amount']['currency']
@@ -289,20 +289,20 @@ def search_for_existing_tx(tx: Transaction) -> int:
     :param tx:
     :return:
     """
-    res = requests.get(FIREFLY_BASE_URI + "/api/v1/search/transactions",
-                       params={'query': f'{tx.id}-{tx.currency_code}'}, headers={
+    res = http.request("GET", FIREFLY_BASE_URI + "/api/v1/search/transactions",
+                       fields={'query': f'{tx.id}-{tx.currency_code}'}, headers={
             'Authorization': 'Bearer ' + os.environ['FIREFLY_TOKEN'],
             'Accept': 'application/json',
             'Content-Type': 'application/json'
         })
-    if res.status_code == 401:
+    if res.status == 401:
         logging.error('Unauthorized response posting transactions, check API token.')
         exit()
-    if res.status_code != 200:
-        logging.error(f'Failed to search transactions for a non-auth reason. {res.status_code}: {res.content.decode()}')
+    if res.status != 200:
+        logging.error(f'Failed to search transactions for a non-auth reason. {res.status}: {res.data.decode()}')
         exit()
 
-    body = json.loads(res.content)
+    body = json.loads(res.data)
     if len(body['data']) > 1:
         ids = [x['id'] for x in body['data']]
         logging.error(f"Received more than one transaction like {tx.id}, IDs: {ids}. Please fix / report bug.")
@@ -356,26 +356,26 @@ def post_tx_to_firefly(tx: Transaction, account_id: str) -> bool:
     existing_id = search_for_existing_tx(tx)
 
     if existing_id != 0:
-        res = requests.put(FIREFLY_BASE_URI + f"/api/v1/transactions/{existing_id}", json.dumps(payload), headers={
+        res = http.request("PUT", f"{FIREFLY_BASE_URI}/api/v1/transactions/{existing_id}", body=json.dumps(payload), headers={
             'Authorization': 'Bearer ' + os.environ['FIREFLY_TOKEN'],
             'Accept': 'application/json',
             'Content-Type': 'application/json'
         })
     else:
-        res = requests.post(FIREFLY_BASE_URI + "/api/v1/transactions", json.dumps(payload), headers={
+        res = http.request("POST", f"{FIREFLY_BASE_URI}/api/v1/transactions", body=json.dumps(payload), headers={
             'Authorization': 'Bearer ' + os.environ['FIREFLY_TOKEN'],
             'Accept': 'application/json',
             'Content-Type': 'application/json'
         })
 
-    if res.status_code == 422:
-        logging.error(f'Failed to put transaction {tx.id}: {res.content.decode()}')
+    if res.status == 422:
+        logging.error(f'Failed to put transaction {tx.id}: {res.data.decode()}')
         return True
-    if res.status_code == 401:
+    if res.status == 401:
         logging.error('Unauthorized response posting transactions, check API token.')
         exit()
-    if res.status_code != 200:
-        logging.error(f'Failed to post transactions for a non-auth reason. {res.status_code}: {res.content.decode()}')
+    if res.status != 200:
+        logging.error(f'Failed to post transactions for a non-auth reason. {res.status}: {res.data.decode()}')
         exit()
 
     return True
