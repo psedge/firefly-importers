@@ -1,6 +1,6 @@
 # firefly-importers
 
-A framework and collection of implementations for importing transactions into [Firefly III](https://firefly-iii.com) 
+A framework and collection of implementations for importing transactions into [Firefly III](https://www.firefly-iii.org/) 
 <img src="https://github.com/psedge/firefly-importers/blob/main/assets/firefly.png" alt="Firefly III" width="12" height="12">, 
 deployed through Terraform to be run on Lambda triggered by CloudWatch Events, or as standalone components to run in other contexts. 
 
